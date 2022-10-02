@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/akerl/go-lambda/apigw/events"
 	"github.com/akerl/go-lambda/mux"
 	"github.com/akerl/go-lambda/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/slack-go/slack"
 )
 
@@ -52,6 +54,10 @@ func handleScan(r events.Request) (events.Response, error) {
 		requestKeyPath := "checks/" + c.Key()
 		stampBytes, err := s3.GetObject(bucketName, requestKeyPath)
 		if err != nil {
+			var nsk *types.NoSuchKey
+			if errors.As(err, &nsk) {
+				stampBytes = []byte("0")
+			}
 			return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
 		}
 		stamp, err := strconv.ParseInt(string(stampBytes), 10, 64)
