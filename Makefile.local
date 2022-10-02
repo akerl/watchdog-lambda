@@ -1,2 +1,4 @@
 PACKAGE = watchdog-lambda
 OSARCHLIST = linux/amd64
+
+export CGO_ENABLED=0
