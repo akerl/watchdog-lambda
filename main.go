@@ -10,6 +10,7 @@ import (
 	"github.com/akerl/go-lambda/apigw/events"
 	"github.com/akerl/go-lambda/mux"
 	"github.com/akerl/go-lambda/s3"
+	s3api "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/slack-go/slack"
 )
 
@@ -23,7 +24,7 @@ func isScan(r events.Request) bool {
 
 func doesCheckExist(r events.Request) (events.Response, error) {
 	requestKey := strings.TrimPrefix(r.Path, "/checks/")
-	for _, c := range config.Checks() {
+	for _, c := range config.Checks {
 		if requestKey == c.Key() {
 			return events.Response{}, nil
 		}
@@ -32,18 +33,24 @@ func doesCheckExist(r events.Request) (events.Response, error) {
 }
 
 func handleCheck(r events.Request) (events.Response, error) {
-	params := events.Params{Request: &req}
+	params := events.Params{Request: &r}
 	bucketName := params.Lookup("bucket")
 	requestKeyPath := strings.TrimPrefix(r.Path, "/")
 
-	client := s3.Client()
+	client, err := s3.Client()
+	if err != nil {
+		return events.Fail("failed to load s3 client")
+	}
 	stamp := time.Now().Unix()
 
-	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
+	input := &s3api.PutObjectInput{
 		Bucket: &bucketName,
 		Key:    &requestKeyPath,
-		Body:   strings.NewReader(string(stamp)),
-	})
+		Body:   strings.NewReader(fmt.Sprintf("%d", stamp)),
+	}
+
+	req := client.PutObjectRequest(input)
+	_, err = req.Send(context.Background())
 
 	if err != nil {
 		return events.Fail("failed to write object")
@@ -53,7 +60,7 @@ func handleCheck(r events.Request) (events.Response, error) {
 }
 
 func handleScan(r events.Request) (events.Response, error) {
-	params := events.Params{Request: &req}
+	params := events.Params{Request: &r}
 	bucketName := params.Lookup("bucket")
 
 	for _, c := range config.Checks {
@@ -67,11 +74,11 @@ func handleScan(r events.Request) (events.Response, error) {
 			return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
 		}
 		last := time.Unix(stamp, 0)
-		expiry := last.Add(c.Threshold * time.Minute)
+		expiry := last.Add(time.Duration(c.Threshold) * time.Minute)
 		now := time.Now()
 		if expiry.Before(now) {
 			msg := slack.WebhookMessage{
-				Text: fmt.Sprintf("Expired heartbeats for %s", c.Name()),
+				Text: fmt.Sprintf("Expired heartbeats for %s", c.Name),
 			}
 			err := slack.PostWebhook(config.SlackWebhook, &msg)
 			if err != nil {
@@ -79,6 +86,8 @@ func handleScan(r events.Request) (events.Response, error) {
 			}
 		}
 	}
+
+	return events.Succeed("scanned all checks")
 }
 
 func main() {
