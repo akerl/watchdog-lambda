@@ -13,11 +13,10 @@ type check struct {
 }
 
 func (c check) Key() string {
-	if c.CustomKey {
+	if c.CustomKey != "" {
 		return c.CustomKey
-	} else if c.Name {
-		return c.Name
 	}
+	return c.Name
 }
 
 type configFile struct {
