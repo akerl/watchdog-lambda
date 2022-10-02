@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"github.com/akerl/go-lambda/apigw/events"
 	"github.com/akerl/go-lambda/mux"
 	"github.com/akerl/go-lambda/s3"
-	s3api "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/slack-go/slack"
 )
 
@@ -36,22 +34,9 @@ func handleCheck(r events.Request) (events.Response, error) {
 	params := events.Params{Request: &r}
 	bucketName := params.Lookup("bucket")
 	requestKeyPath := strings.TrimPrefix(r.Path, "/")
-
-	client, err := s3.Client()
-	if err != nil {
-		return events.Fail("failed to load s3 client")
-	}
 	stamp := time.Now().Unix()
 
-	input := &s3api.PutObjectInput{
-		Bucket: &bucketName,
-		Key:    &requestKeyPath,
-		Body:   strings.NewReader(fmt.Sprintf("%d", stamp)),
-	}
-
-	req := client.PutObjectRequest(input)
-	_, err = req.Send(context.Background())
-
+	err := s3.PutObject(bucketName, requestKeyPath, fmt.Sprintf("%d", stamp))
 	if err != nil {
 		return events.Fail("failed to write object")
 	}
@@ -71,7 +56,7 @@ func handleScan(r events.Request) (events.Response, error) {
 		}
 		stamp, err := strconv.ParseInt(string(stampBytes), 10, 64)
 		if err != nil {
-			return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
+			return events.Fail(fmt.Sprintf("failed converting %s", requestKeyPath))
 		}
 		last := time.Unix(stamp, 0)
 		expiry := last.Add(time.Duration(c.Threshold) * time.Minute)
