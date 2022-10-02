@@ -40,6 +40,7 @@ func handleCheck(r events.Request) (events.Response, error) {
 
 	err := s3.PutObject(bucketName, requestKeyPath, fmt.Sprintf("%d", stamp))
 	if err != nil {
+		fmt.Printf("%s", err)
 		return events.Fail("failed to write object")
 	}
 
@@ -58,10 +59,12 @@ func handleScan(r events.Request) (events.Response, error) {
 			if errors.As(err, &nsk) {
 				stampBytes = []byte("0")
 			}
+			fmt.Printf("%s", err)
 			return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
 		}
 		stamp, err := strconv.ParseInt(string(stampBytes), 10, 64)
 		if err != nil {
+			fmt.Printf("%s", err)
 			return events.Fail(fmt.Sprintf("failed converting %s", requestKeyPath))
 		}
 		last := time.Unix(stamp, 0)
@@ -73,6 +76,7 @@ func handleScan(r events.Request) (events.Response, error) {
 			}
 			err := slack.PostWebhook(config.SlackWebhook, &msg)
 			if err != nil {
+				fmt.Printf("%s", err)
 				return events.Fail(fmt.Sprintf("failed posting message"))
 			}
 		}
