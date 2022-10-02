@@ -1,0 +1,2 @@
+PACKAGE = watchdog-lambda
+OSARCHLIST = linux/amd64
