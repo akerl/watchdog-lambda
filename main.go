@@ -58,9 +58,10 @@ func handleScan(r events.Request) (events.Response, error) {
 			var nsk *types.NoSuchKey
 			if errors.As(err, &nsk) {
 				stampBytes = []byte("0")
+			} else {
+				fmt.Printf("%s", err)
+				return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
 			}
-			fmt.Printf("%s", err)
-			return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
 		}
 		stamp, err := strconv.ParseInt(string(stampBytes), 10, 64)
 		if err != nil {
