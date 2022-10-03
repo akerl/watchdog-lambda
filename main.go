@@ -20,7 +20,7 @@ func isCheckInput(r events.Request) bool {
 }
 
 func isScan(r events.Request) bool {
-	return r.Path == "/scan"
+	return r.Path == "/scan" || r.Path == "/scan/"
 }
 
 func doesCheckExist(r events.Request) (events.Response, error) {
@@ -91,6 +91,12 @@ func handleScan(r events.Request) (events.Response, error) {
 	return events.Succeed(strings.Join(resultBuffer, "\n"))
 }
 
+func catchAll(r events.Request) (events.Response, error) {
+	msg := fmt.Sprintf("no handler for path %s", r.Path)
+	fmt.Println(msg)
+	return event.Fail(msg)
+}
+
 func main() {
 	var err error
 	config, err = loadConfig()
@@ -107,6 +113,9 @@ func main() {
 		&mux.SimpleReceiver{
 			CheckFunc:  isScan,
 			HandleFunc: handleScan,
+		},
+		&mux.SimpleReceiver{
+			HandleFunc: catchAll,
 		},
 	)
 	mux.Start(d)
