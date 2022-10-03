@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,39 +52,43 @@ func handleScan(r events.Request) (events.Response, error) {
 	params := events.Params{Request: &r}
 	bucketName := params.Lookup("bucket")
 
-	for _, c := range config.Checks {
+	resultBuffer := make([]string, len(config.Checks))
+
+	for i, c := range config.Checks {
 		requestKeyPath := "checks/" + c.Key()
 		stampBytes, err := s3.GetObject(bucketName, requestKeyPath)
 		if err != nil {
+			stampBytes = []byte("0")
 			var nsk *types.NoSuchKey
-			if errors.As(err, &nsk) {
-				stampBytes = []byte("0")
-			} else {
-				fmt.Printf("%s", err)
-				return events.Fail(fmt.Sprintf("failed parsing %s", requestKeyPath))
+			if !errors.As(err, &nsk) {
+				fmt.Printf("failed parsing %s: %s", requestKeyPath, err)
 			}
 		}
 		stamp, err := strconv.ParseInt(string(stampBytes), 10, 64)
 		if err != nil {
-			fmt.Printf("%s", err)
-			return events.Fail(fmt.Sprintf("failed converting %s", requestKeyPath))
+			stamp = 0
+			fmt.Printf("failed converting %s (%s): %s", requestKeyPath, stampBytes, err)
 		}
 		last := time.Unix(stamp, 0)
 		expiry := last.Add(time.Duration(c.Threshold) * time.Minute)
 		now := time.Now()
 		if expiry.Before(now) {
+			resultBuffer[i] = fmt.Sprintf("[Problem] Expired heartbeat for %s: %s", c.Name, last)
 			msg := slack.WebhookMessage{
-				Text: fmt.Sprintf("Expired heartbeats for %s", c.Name),
+				Text: resultBuffer[i],
 			}
 			err := slack.PostWebhook(config.SlackWebhook, &msg)
 			if err != nil {
 				fmt.Printf("%s", err)
 				return events.Fail(fmt.Sprintf("failed posting message"))
 			}
+		} else {
+			resultBuffer[i] = fmt.Sprintf("[Success] Fresh heartbeat for %s: %s", c.Name, last)
 		}
 	}
 
-	return events.Succeed("scanned all checks")
+	sort.Strings(resultBuffer)
+	return events.Succeed(strings.Join(resultBuffer, "\n"))
 }
 
 func main() {
