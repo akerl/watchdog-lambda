@@ -94,7 +94,7 @@ func handleScan(r events.Request) (events.Response, error) {
 func catchAll(r events.Request) (events.Response, error) {
 	msg := fmt.Sprintf("no handler for path %s", r.Path)
 	fmt.Println(msg)
-	return event.Fail(msg)
+	return events.Fail(msg)
 }
 
 func main() {
