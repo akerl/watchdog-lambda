@@ -1,7 +1,7 @@
 watchdog-lambda
 =========
 
-[![GitHub Workflow Status](https://img.shields.io/actions/github/workflow/status/akerl/watchdog-lambda/build.yml?branch=main)](https://github.com/akerl/watchdog-lambda/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/akerl/watchdog-lambda/build.yml?branch=main)](https://github.com/akerl/watchdog-lambda/actions)
 [![GitHub release](https://img.shields.io/github/release/akerl/watchdog-lambda.svg)](https://github.com/akerl/watchdog-lambda/releases)
 [![MIT Licensed](https://img.shields.io/badge/license-MIT-green.svg)](https://tldrlegal.com/license/mit-license)
 
